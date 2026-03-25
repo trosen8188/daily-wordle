@@ -277,99 +277,34 @@
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-const SECRET = "BOOBS";
+// Word can be set via ?w=XXXXX in the URL (base64 encoded), falls back to JELLO
+function getSecret() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('w');
+    if (encoded) {
+      const word = atob(encoded).toUpperCase().trim();
+      if (/^[A-Z]{5}$/.test(word)) return word;
+    }
+  } catch(e) {}
+  return "JELLO";
+}
+const SECRET = getSecret();
 const MAX_GUESSES = 6;
 const WORD_LEN = 5;
 
-// A plausible pool of 5-letter words that aren't JELLO
-const VALID_WORDS = new Set([
-  "ABOUT","ABOVE","ABUSE","ACTOR","ACUTE","ADMIT","ADOPT","ADULT","AFTER","AGAIN",
-  "AGENT","AGREE","AHEAD","ALARM","ALBUM","ALERT","ALIEN","ALIGN","ALIKE","ALIVE",
-  "ALLEY","ALLOW","ALONE","ALONG","ALTAR","ALTER","ANGEL","ANGLE","ANGRY","ANIME",
-  "ANKLE","ANNEX","ANTIC","ANVIL","APART","APPLE","APPLY","APRON","ARDOR","ARGUE",
-  "ARISE","ARMOR","ARRAY","ARROW","ASIDE","ASKED","ASSET","ATLAS","ATTIC","AUDIO",
-  "AUDIT","AVOID","AWAKE","AWARD","AWARE","AWFUL","AWKWARD".slice(0,5),
-  "BACON","BADGE","BADLY","BAGEL","BAKER","BASIC","BASIN","BASIS","BATCH","BEACH",
-  "BEARD","BEAST","BEGAN","BEGIN","BEING","BELOW","BENCH","BERRY","BIRTH","BISON",
-  "BLACK","BLADE","BLANK","BLAST","BLAZE","BLEED","BLEND","BLIND","BLOCK","BLOOD",
-  "BLOOM","BOOBS","BLOWN","BOARD","BONUS","BOOST","BOOTH","BOXER","BRACE","BRAIN","BRAND",
-  "BRAVE","BREAD","BREAK","BREED","BRICK","BRIDE","BRIEF","BRING","BRISK","BROKE",
-  "BROOK","BROWN","BRUSH","BUILD","BUILT","BULGE","BUNCH","BURST","BUYER",
-  "CABIN","CABLE","CANAL","CANDY","CARGO","CARRY","CATCH","CAUSE","CEASE","CHAIN",
-  "CHAIR","CHALK","CHAOS","CHARM","CHART","CHASE","CHEAP","CHECK","CHEEK","CHEER",
-  "CHESS","CHEST","CHIEF","CHILD","CHILL","CLAIM","CLASS","CLEAN","CLEAR","CLERK",
-  "CLICK","CLIFF","CLIMB","CLING","CLOCK","CLONE","CLOSE","CLOTH","CLOUD","COACH",
-  "COAST","COBRA","COMET","COMIC","COMMA","CORAL","COUNT","COURT","COVER","CRACK",
-  "CRAFT","CRANE","CRASH","CRAZY","CREAM","CREEK","CRIME","CRISP","CROSS","CRUST",
-  "CURVE","CYCLE",
-  "DAILY","DAIRY","DANCE","DATUM","DAVID","DECAY","DELAY","DELTA","DENSE","DEPOT",
-  "DEPTH","DERBY","DEVIL","DIGIT","DIRTY","DISCO","DITCH","DIVER","DIZZY","DODGE",
-  "DOING","DONOR","DOUBT","DOUGH","DRAFT","DRAIN","DRAMA","DRANK","DRAWN","DREAM",
-  "DRESS","DRILL","DRINK","DRIVE","DROVE","DRUGS","DRUMS","DRYER","DUNES","DUNNO",
-  "DUSTY","DWARF","DYING",
-  "EAGER","EAGLE","EARLY","EARTH","EATEN","EDGED","EIGHT","EJECT","ELITE","EMAIL",
-  "EMBER","EMPTY","ENEMY","ENJOY","ENTER","ENTRY","EQUAL","ERROR","ESSAY","EVADE",
-  "EVENT","EVERY","EVICT","EXACT","EXIST","EXTRA",
-  "FABLE","FAINT","FAITH","FANCY","FARCE","FATAL","FAVOR","FEAST","FENCE","FEVER",
-  "FIBER","FIFTY","FIGHT","FINAL","FIRST","FIXED","FLAME","FLARE","FLASH","FLASK",
-  "FLESH","FLINT","FLOAT","FLOCK","FLOOR","FLOUR","FLUID","FLUTE","FOCAL","FOGGY",
-  "FORCE","FORGE","FORGE","FORTY","FORUM","FOUND","FRAME","FRANK","FRAUD","FRESH",
-  "FRONT","FROST","FROWN","FROZE","FRUIT","FULLY","FUNGI","FUNKY","FUNNY","FUZZY",
-  "GHOST","GIANT","GIVEN","GLAND","GLASS","GLOOM","GLOVE","GNARL","GONNA","GRACE",
-  "GRADE","GRAIN","GRAND","GRANT","GRASP","GRASS","GRAVE","GREAT","GREED","GREET",
-  "GRIEF","GRIND","GROAN","GROOM","GROUP","GROVE","GROWN","GRUEL","GUARD","GUEST",
-  "GUIDE","GUILT","GUISE","GUSTO","GUSTY",
-  "HABIT","HANDS","HANDY","HAPPY","HARSH","HASTY","HATCH","HAUNT","HAVEN","HEAVY",
-  "HEDGE","HELIX","HELLO","HERBS","HINGE","HIPPO","HOIST","HOMER","HONEY","HONOR",
-  "HORSE","HOTEL","HOUSE","HUMAN","HUMID","HUMOR","HURRY","HUSTLE".slice(0,5),
-  "ICILY","IDEAL","IMAGE","IMPLY","INDEX","INDIE","INFER","INNER","INPUT","INTER",
-  "INTRO","IONIC","ISSUE","ICING",
-  "JOKER","JOINT","JUDGE","JUICE","JUICY","JUMBO","JUMPY","JUNTO",
-  "KNACK","KNEEL","KNIFE","KNOCK","KNOWN",
-  "LABEL","LASER","LATER","LAUGH","LAUNCH".slice(0,5),"LAYER","LEARN","LEASE","LEAST",
-  "LEDGE","LEGAL","LEMON","LEVEL","LIGHT","LINER","LINGO","LIVER","LOCAL","LODGE",
-  "LOGIC","LOOSE","LOVER","LOWER","LUCKY","LUNAR","LUSTY","LYRIC",
-  "MAGIC","MAJOR","MAKER","MAPLE","MARCH","MARRY","MATCH","MAYBE","MAYOR","MEDIA",
-  "MERIT","METAL","MIGHT","MINOR","MINUS","MIRTH","MOIST","MONEY","MONTH","MORAL",
-  "MOTIF","MOTOR","MOTTO","MOUNT","MOUSE","MOUTH","MOVED","MOVIE","MULTI","MUSIC",
-  "NADIR","NAIVE","NEVER","NIGHT","NINJA","NOBLE","NOISE","NORTH","NOTCH","NOTED",
-  "NOVEL","NURSE","NYMPH",
-  "OCCUR","OCEAN","OFFER","OFTEN","ORDER","ORBIT","OTHER","OUGHT","OUTDO","OUTER",
-  "OVEN","OVARY","OVERT","OWNER",
-  "PACED","PANIC","PARTY","PASTA","PATCH","PAUSE","PEACE","PEACH","PEARL","PEDAL",
-  "PENNY","PERCH","PHASE","PHONE","PHOTO","PIANO","PILOT","PINCH","PIXEL","PIZZA",
-  "PLACE","PLAIN","PLANE","PLANT","PLAZA","PLEAD","PLUCK","PLUMB","PLUME","PLUNK",
-  "PLUSH","POINT","POLAR","POPPY","PORCH","POUND","POWER","PRESS","PRICE","PRIDE",
-  "PRIME","PRINT","PRIOR","PRIZE","PROBE","PROUD","PROVE","PROXY","PSALM","PULSE",
-  "PUNCH","PUPIL","PURSE","QUEST","QUEUE","QUICK","QUIET","QUIRK","QUOTA","QUOTE",
-  "RADAR","RADIO","RAISE","RALLY","RANCH","RANGE","RAPID","RATIO","REACH","READY",
-  "REALM","REBEL","REIGN","RENEW","REPAY","REPLY","RIDER","RIGHT","RIGID","RISKY",
-  "RIVAL","RIVER","RIVET","ROBOT","ROCKY","ROMAN","ROUGE","ROUGH","ROUND","ROUTE",
-  "ROVER","ROYAL","RULER","RURAL","RUSTY",
-  "SAINT","SALAD","SALON","SALTY","SAUCE","SCALE","SCARE","SCENE","SCOPE","SCORE",
-  "SENSE","SERUM","SERVE","SETUP","SEVEN","SHARE","SHARK","SHARP","SHELF","SHELL",
-  "SHIFT","SHINY","SHIRT","SHOCK","SHORE","SHOUT","SIGHT","SINCE","SKILL","SKULL",
-  "SLATE","SLAVE","SLEEK","SLEEP","SLICK","SLIDE","SLIM","SLOPE","SLUGS","SMALL",
-  "SMART","SMASH","SMELL","SMILE","SMIRK","SMOKE","SNAKE","SOLAR","SOLID","SOLVE",
-  "SOUND","SOUTH","SPACE","SPARE","SPARK","SPEED","SPICE","SPINE","SPOKE","SPORT",
-  "SPRAY","SQUAD","STACK","STAFF","STAGE","STAIN","STAKE","STALE","STAMP","STAND",
-  "STARK","START","STATE","STAYS","STEAM","STEEL","STEEP","STEER","STERN","STICK",
-  "STIFF","STILL","STING","STOCK","STOMP","STONE","STOOD","STORM","STORY","STOVE",
-  "STRAP","STRAY","STRIP","STUCK","STUDY","STYLE","SUITE","SURGE","SWAMP","SWEAR",
-  "SWEEP","SWEET","SWEPT","SWIFT","SWIPE","SWORD","SYNTH",
-  "TABLE","TAKEN","TALLY","TASTY","TEACH","TENSE","TERMS","THORN","THOSE","THREE",
-  "THREW","THROW","THUMB","TIGER","TIMER","TIRED","TITLE","TOAST","TODAY","TOKEN",
-  "TOTAL","TOUCH","TOUGH","TOWEL","TOWER","TOXIC","TRACE","TRACK","TRADE","TRAIT",
-  "TRASH","TREND","TRIAL","TRIBE","TRICK","TRIED","TROOP","TROUT","TRUCE","TRUCK",
-  "TRUNK","TRUST","TRUTH","TUMOR","TUNER","TWICE","TWIST","TYING",
-  "UNCLE","UNDER","UNIFY","UNION","UNITE","UNTIL","UPPER","USAGE","USHER","UTTER",
-  "VALID","VALOR","VALVE","VAPOR","VAULT","VIGOR","VIRAL","VIRUS","VISIT","VITAL",
-  "VOCAL","VODKA","VOILA","VOTER","VOWED",
-  "WAGER","WASTE","WATCH","WATER","WEARY","WEAVE","WEDGE","WEIRD","WHALE","WHEAT",
-  "WHEEL","WHERE","WHICH","WHILE","WHISK","WHITE","WHOLE","WIDER","WIELD","WITCH",
-  "WORLD","WORRY","WORSE","WORST","WORTH","WOULD","WOUND","WRATH","WRITE","WROTE",
-  "YACHT","YIELD","YOUNG","YOURS","YOUTH","ZEBRA","ZESTY","ZILCH","ZONAL","JELLO"
-].map(w => w.slice(0,5)));
+// ── ADD YOUR OWN WORDS HERE ──────────────────────────────────────────────────
+// Any 5-letter word you add here will be accepted as a valid guess
+const CUSTOM_WORDS = [
+  "BOOBS",
+  "TWERK",
+  "BOOBY",
+  // add more here...
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Valid words - loaded from public word list
+let VALID_WORDS = new Set(["JELLO"]); // fallback, replaced on load
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let currentRow = 0;
@@ -588,8 +523,24 @@ function resetGame() {
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
-buildBoard();
-buildKeyboard();
+// Fetch the full ~13k word Wordle-valid word list, then start
+async function init() {
+  try {
+    const res = await fetch('https://raw.githubusercontent.com/tabatkins/wordle-list/main/words');
+    const text = await res.text();
+    const words = text.trim().split('\n').map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]{5}$/.test(w));
+    VALID_WORDS = new Set(words);
+    VALID_WORDS.add(SECRET); // always allow the secret word
+    CUSTOM_WORDS.forEach(w => VALID_WORDS.add(w.toUpperCase())); // add custom words
+  } catch(e) {
+    // fallback: keep the small default set, game still works
+    VALID_WORDS.add(SECRET);
+    CUSTOM_WORDS.forEach(w => VALID_WORDS.add(w.toUpperCase()));
+  }
+  buildBoard();
+  buildKeyboard();
+}
+init();
 </script>
 </body>
 </html>
